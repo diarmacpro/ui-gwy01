@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Status WA</title>
+</head>
+<body>
+  <h1>Status Login WhatsApp</h1>
+  <div id="status">Memeriksa...</div>
+  <div id="qrBox" style="display:none;">
+    <img id="qrImg" src="" width="200" />
+    <p>Scan dalam <span id="countdown">30</span> detik</p>
+  </div>
+  <div id="deviceInfo" style="display:none;"></div>
+  <button id="logoutBtn" style="display:none;">Logout</button>
+
+  <script>
+    const $ = id => document.getElementById(id);
+    let timer = null;
+
+    function startCountdown(dur) {
+      clearInterval(timer);
+      let count = dur;
+      timer = setInterval(() => {
+        $("countdown").textContent = count--;
+        if (count <= 0) {
+          clearInterval(timer);
+          getQR();
+        }
+      }, 1000);
+    }
+
+    function fetchDevice() {
+      fetch("/devices")
+        .then(r => r.json())
+        .then(j => {
+          if (j.code === "SUCCESS" && j.results.length) {
+            showDevice(j.results[0]);
+          } else {
+            getQR();
+          }
+        });
+    }
+
+    function showDevice(dev) {
+      $("status").textContent = "Sudah login: " + dev.name;
+      $("deviceInfo").textContent = `Perangkat: ${dev.name} (${dev.device})`;
+      $("deviceInfo").style.display = "block";
+      $("qrBox").style.display = "none";
+      $("logoutBtn").style.display = "inline-block";
+    }
+
+    function getQR() {
+      $("status").textContent = "Mengambil QR...";
+      fetch("/login")
+        .then(r => r.json())
+        .then(j => {
+          if (j.code === "SUCCESS") {
+            $("qrImg").src = j.results.qr_link;
+            $("qrBox").style.display = "block";
+            $("deviceInfo").style.display = "none";
+            $("logoutBtn").style.display = "none";
+            $("status").textContent = "Silakan scan QR.";
+            startCountdown(j.results.qr_duration);
+          } else {
+            $("status").textContent = "Gagal mengambil QR.";
+          }
+        });
+    }
+
+    $("logoutBtn").addEventListener("click", () => {
+      $("status").textContent = "Logout...";
+      fetch("/logout")
+        .then(r => r.json())
+        .then(j => {
+          $("status").textContent = j.message;
+          $("logoutBtn").style.display = "none";
+          $("deviceInfo").style.display = "none";
+          getQR();
+        });
+    });
+
+    fetchDevice();
+  </script>
+</body>
+</html>
